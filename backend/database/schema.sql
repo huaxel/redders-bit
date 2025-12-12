@@ -87,3 +87,17 @@ INSERT OR IGNORE INTO config (key, value, description) VALUES
     ('required_rest_days', '2', 'Verplichte rustdagen na werkperiode'),
     ('min_hours_per_day', '4', 'Minimum werkuren per dag'),
     ('max_hours_per_day', '9', 'Maximum werkuren per dag');
+
+-- Shift Requests (Verzoeken aan redders)
+CREATE TABLE IF NOT EXISTS shift_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    pool_id INTEGER NOT NULL,
+    date DATE NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    status TEXT CHECK(status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE
+);

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
+import { client } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 function Employees() {
     const [employees, setEmployees] = useState([])
     const [loading, setLoading] = useState(true)
+    const { user } = useAuth()
 
     useEffect(() => {
         fetchEmployees()
@@ -10,7 +13,7 @@ function Employees() {
 
     const fetchEmployees = async () => {
         try {
-            const res = await fetch('/api/employees')
+            const res = await client.get('/api/employees')
             const data = await res.json()
             setEmployees(data)
         } catch (error) {
@@ -39,8 +42,8 @@ function Employees() {
                             <th>Naam</th>
                             <th>Email</th>
                             <th>Rollen</th>
-                            <th>Contract</th>
-                            <th>Uurtarief</th>
+                            {user?.role === 'admin' && <th>Contract</th>}
+                            {user?.role === 'admin' && <th>Uurtarief</th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -74,12 +77,16 @@ function Employees() {
                                         )}
                                     </div>
                                 </td>
-                                <td>
-                                    <span className={`badge ${emp.contract_type === 'voltijds' ? 'fulltime' : 'parttime'}`}>
-                                        {emp.contract_type === 'voltijds' ? 'Voltijds' : 'Deeltijds'}
-                                    </span>
-                                </td>
-                                <td>€{emp.hourly_rate}/u</td>
+                                {user?.role === 'admin' && (
+                                    <td>
+                                        <span className={`badge ${emp.contract_type === 'voltijds' ? 'fulltime' : 'parttime'}`}>
+                                            {emp.contract_type === 'voltijds' ? 'Voltijds' : 'Deeltijds'}
+                                        </span>
+                                    </td>
+                                )}
+                                {user?.role === 'admin' && (
+                                    <td>€{emp.hourly_rate}/u</td>
+                                )}
                             </tr>
                         ))}
                     </tbody>

@@ -2,18 +2,18 @@ import { useState, useEffect } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
+import { client } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 function MySchedule() {
-    const [events, setEvents] = useState([])
-    const [hours, setHours] = useState({ worked: 0, max: 160, remaining: 160 })
-    const [loading, setLoading] = useState(true)
-
-    // For demo, use first user
-    const userId = 1
+    const [requests, setRequests] = useState([])
+    const { user } = useAuth()
 
     useEffect(() => {
-        fetchMySchedule()
-    }, [])
+        if (user) {
+            fetchMySchedule()
+        }
+    }, [user])
 
     const fetchMySchedule = async () => {
         try {
@@ -21,13 +21,17 @@ function MySchedule() {
             const year = now.getFullYear()
             const month = String(now.getMonth() + 1).padStart(2, '0')
 
-            const [scheduleRes, hoursRes] = await Promise.all([
-                fetch(`/api/schedule/user/${userId}`),
-                fetch(`/api/employees/${userId}/hours/${year}/${month}`)
+            const [scheduleRes, hoursRes, requestsRes] = await Promise.all([
+                client.get(`/api/schedule/user/${user.id}`),
+                client.get(`/api/employees/${user.id}/hours/${year}/${month}`),
+                client.get('/api/schedule/requests')
             ])
 
             const schedule = await scheduleRes.json()
             const hoursData = await hoursRes.json()
+            const reqs = await requestsRes.json()
+
+            setRequests(reqs)
 
             setHours({
                 worked: Math.round(hoursData.worked_hours || 0),
@@ -40,8 +44,8 @@ function MySchedule() {
                 title: item.type === 'redder' ? '🏊 Redder dienst' : '🎓 Les geven',
                 start: `${item.date}T${item.start_time}`,
                 end: `${item.date}T${item.end_time}`,
-                backgroundColor: item.type === 'redder' ? '#0ea5e9' : '#6366f1',
-                borderColor: item.type === 'redder' ? '#0ea5e9' : '#6366f1'
+                backgroundColor: item.user_color || (item.type === 'redder' ? '#0ea5e9' : '#6366f1'),
+                borderColor: item.user_color || (item.type === 'redder' ? '#0ea5e9' : '#6366f1')
             }))
 
             setEvents(calendarEvents)
@@ -49,6 +53,21 @@ function MySchedule() {
             console.error('Failed to fetch schedule:', error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleResponse = async (requestId, status) => {
+        if (!confirm(`Wil je deze shift ${status === 'accepted' ? 'accepteren' : 'weigeren'}?`)) return;
+
+        try {
+            const res = await client.post(`/api/schedule/requests/${requestId}/respond`, { status });
+            if (res.ok) {
+                fetchMySchedule(); // Refresh
+            } else {
+                alert("Er ging iets mis.");
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 
@@ -64,6 +83,45 @@ function MySchedule() {
                 <h2>Mijn Rooster</h2>
                 <p>Je persoonlijke planning en uren overzicht</p>
             </div>
+
+            {requests.length > 0 && (
+                <div className="card" style={{ marginBottom: '24px', borderLeft: '4px solid var(--color-accent)' }}>
+                    <h3 style={{ marginBottom: '16px', color: 'var(--color-accent)' }}>📩 Openstaande Verzoeken</h3>
+                    <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                        {requests.map(req => (
+                            <div key={req.id} style={{
+                                background: 'rgba(196, 147, 89, 0.1)',
+                                padding: '16px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(196, 147, 89, 0.3)'
+                            }}>
+                                <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                                    {new Date(req.date).toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                </div>
+                                <div style={{ marginBottom: '12px', color: 'var(--color-text-muted)' }}>
+                                    {req.start_time} - {req.end_time}
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ flex: 1, fontSize: '12px', padding: '8px' }}
+                                        onClick={() => handleResponse(req.id, 'accepted')}
+                                    >
+                                        Accepteren
+                                    </button>
+                                    <button
+                                        className="btn btn-outline"
+                                        style={{ flex: 1, fontSize: '12px', padding: '8px', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}
+                                        onClick={() => handleResponse(req.id, 'rejected')}
+                                    >
+                                        Weigeren
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="card-grid">
                 <div className="card">

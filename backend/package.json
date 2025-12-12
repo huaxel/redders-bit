@@ -7,11 +7,16 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "init-db": "node database/init.js"
+    "init-db": "node database/init.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "sql.js": "^1.11.0",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "sql.js": "^1.11.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }
