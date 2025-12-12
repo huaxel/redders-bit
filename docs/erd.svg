@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <defs>
+    <style>
+      .entity-box { fill: #e3f2fd; stroke: #1976d2; stroke-width: 2; }
+      .entity-title { fill: #1976d2; font-weight: bold; font-size: 16px; font-family: Arial, sans-serif; }
+      .attribute { fill: #333; font-size: 13px; font-family: Arial, sans-serif; }
+      .relationship-line { stroke: #666; stroke-width: 2; fill: none; }
+      .relationship-text { fill: #666; font-size: 12px; font-family: Arial, sans-serif; }
+      .pk { fill: #d32f2f; font-weight: bold; }
+      .fk { fill: #1976d2; font-style: italic; }
+    </style>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" style="font-size: 24px; font-weight: bold; fill: #1976d2; font-family: Arial, sans-serif;">
+    Redders Planning System - ERD
+  </text>
+
+  <!-- USERS Entity (Center-Top) -->
+  <rect x="450" y="60" width="300" height="180" class="entity-box" rx="5"/>
+  <text x="600" y="85" text-anchor="middle" class="entity-title">USERS</text>
+  <line x1="450" y1="95" x2="750" y2="95" stroke="#1976d2" stroke-width="2"/>
+  <text x="460" y="115" class="attribute pk">PK  id</text>
+  <text x="460" y="135" class="attribute">     name</text>
+  <text x="460" y="155" class="attribute">     email (UNIQUE)</text>
+  <text x="460" y="175" class="attribute">     color</text>
+  <text x="460" y="195" class="attribute">     contract_type</text>
+  <text x="460" y="215" class="attribute">     hourly_rate</text>
+  <text x="460" y="235" class="attribute">     created_at</text>
+
+  <!-- LIFEGUARDS Entity (Left) -->
+  <rect x="50" y="320" width="280" height="120" class="entity-box" rx="5"/>
+  <text x="190" y="345" text-anchor="middle" class="entity-title">LIFEGUARDS</text>
+  <line x1="50" y1="355" x2="330" y2="355" stroke="#1976d2" stroke-width="2"/>
+  <text x="60" y="375" class="attribute pk">PK  id</text>
+  <text x="60" y="395" class="attribute fk">FK  user_id (UNIQUE)</text>
+  <text x="60" y="415" class="attribute">     max_hours_month</text>
+  <text x="60" y="435" class="attribute">     is_active</text>
+
+  <!-- INSTRUCTORS Entity (Right) -->
+  <rect x="870" y="320" width="280" height="120" class="entity-box" rx="5"/>
+  <text x="1010" y="345" text-anchor="middle" class="entity-title">INSTRUCTORS</text>
+  <line x1="870" y1="355" x2="1150" y2="355" stroke="#1976d2" stroke-width="2"/>
+  <text x="880" y="375" class="attribute pk">PK  id</text>
+  <text x="880" y="395" class="attribute fk">FK  user_id (UNIQUE)</text>
+  <text x="880" y="415" class="attribute">     has_initiator_diploma</text>
+  <text x="880" y="435" class="attribute">     is_active</text>
+
+  <!-- CERTIFICATES Entity (Right-Bottom) -->
+  <rect x="870" y="520" width="280" height="120" class="entity-box" rx="5"/>
+  <text x="1010" y="545" text-anchor="middle" class="entity-title">CERTIFICATES</text>
+  <line x1="870" y1="555" x2="1150" y2="555" stroke="#1976d2" stroke-width="2"/>
+  <text x="880" y="575" class="attribute pk">PK  id</text>
+  <text x="880" y="595" class="attribute fk">FK  instructor_id</text>
+  <text x="880" y="615" class="attribute">     name</text>
+  <text x="880" y="635" class="attribute">     obtained_date</text>
+
+  <!-- SCHEDULE_ITEMS Entity (Center-Bottom) -->
+  <rect x="400" y="520" width="300" height="180" class="entity-box" rx="5"/>
+  <text x="550" y="545" text-anchor="middle" class="entity-title">SCHEDULE_ITEMS</text>
+  <line x1="400" y1="555" x2="700" y2="555" stroke="#1976d2" stroke-width="2"/>
+  <text x="410" y="575" class="attribute pk">PK  id</text>
+  <text x="410" y="595" class="attribute fk">FK  user_id</text>
+  <text x="410" y="615" class="attribute">     date</text>
+  <text x="410" y="635" class="attribute">     start_time</text>
+  <text x="410" y="655" class="attribute">     end_time</text>
+  <text x="410" y="675" class="attribute">     type (redder/lesgever)</text>
+  <text x="410" y="695" class="attribute">     notes</text>
+
+  <!-- RENTAL_PERIODS Entity (Left-Bottom) -->
+  <rect x="50" y="520" width="280" height="120" class="entity-box" rx="5"/>
+  <text x="190" y="545" text-anchor="middle" class="entity-title">RENTAL_PERIODS</text>
+  <line x1="50" y1="555" x2="330" y2="555" stroke="#1976d2" stroke-width="2"/>
+  <text x="60" y="575" class="attribute pk">PK  id</text>
+  <text x="60" y="595" class="attribute">     start_date</text>
+  <text x="60" y="615" class="attribute">     end_date</text>
+  <text x="60" y="635" class="attribute">     renter_name</text>
+
+  <!-- CONFIG Entity (Bottom) -->
+  <rect x="450" y="750" width="300" height="100" class="entity-box" rx="5"/>
+  <text x="600" y="775" text-anchor="middle" class="entity-title">CONFIG</text>
+  <line x1="450" y1="785" x2="750" y2="785" stroke="#1976d2" stroke-width="2"/>
+  <text x="460" y="805" class="attribute pk">PK  key</text>
+  <text x="460" y="825" class="attribute">     value</text>
+  <text x="460" y="845" class="attribute">     description</text>
+
+  <!-- Relationships -->
+
+  <!-- USERS to LIFEGUARDS (1:0..1) -->
+  <path d="M 450 150 L 330 380" class="relationship-line" marker-end="url(#arrow)"/>
+  <text x="380" y="250" class="relationship-text">1</text>
+  <text x="340" y="360" class="relationship-text">0..1</text>
+  <text x="360" y="280" class="relationship-text" style="font-weight: bold;">extends</text>
+
+  <!-- USERS to INSTRUCTORS (1:0..1) -->
+  <path d="M 750 150 L 870 380" class="relationship-line" marker-end="url(#arrow)"/>
+  <text x="760" y="250" class="relationship-text">1</text>
+  <text x="850" y="360" class="relationship-text">0..1</text>
+  <text x="800" y="280" class="relationship-text" style="font-weight: bold;">extends</text>
+
+  <!-- INSTRUCTORS to CERTIFICATES (1:0..*) -->
+  <path d="M 1010 440 L 1010 520" class="relationship-line" marker-end="url(#arrow)"/>
+  <text x="1020" y="460" class="relationship-text">1</text>
+  <text x="1020" y="510" class="relationship-text">0..*</text>
+  <text x="1020" y="485" class="relationship-text" style="font-weight: bold;">has</text>
+
+  <!-- USERS to SCHEDULE_ITEMS (1:0..*) -->
+  <path d="M 550 240 L 550 520" class="relationship-line" marker-end="url(#arrow)"/>
+  <text x="560" y="260" class="relationship-text">1</text>
+  <text x="560" y="510" class="relationship-text">0..*</text>
+  <text x="560" y="385" class="relationship-text" style="font-weight: bold;">assigned to</text>
+
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <!-- Legend -->
+  <rect x="50" y="750" width="320" height="100" fill="#f5f5f5" stroke="#999" stroke-width="1" rx="5"/>
+  <text x="60" y="770" style="font-size: 14px; font-weight: bold; fill: #333; font-family: Arial, sans-serif;">Legend:</text>
+  <text x="60" y="790" class="attribute pk">PK = Primary Key</text>
+  <text x="60" y="810" class="attribute fk">FK = Foreign Key</text>
+  <text x="60" y="830" class="relationship-text">Lines show relationships between entities</text>
+
+  <!-- Notes -->
+  <text x="60" y="880" style="font-size: 11px; fill: #666; font-family: Arial, sans-serif;">
+    * A user can be both a lifeguard AND an instructor (different role extensions)
+  </text>
+  <text x="60" y="895" style="font-size: 11px; fill: #666; font-family: Arial, sans-serif;">
+    * rental_periods and config are standalone tables used for validation/configuration
+  </text>
+</svg>
