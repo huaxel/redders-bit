@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import Database from 'better-sqlite3';
+import initSqlJs from 'sql.js';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,19 +9,107 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Database connection
-const db = new Database(join(__dirname, 'database', 'redders.db'));
+// Database setup
+let db;
+const dbPath = join(__dirname, 'database', 'redders.db');
+const schemaPath = join(__dirname, 'database', 'schema.sql');
+
+async function initDatabase() {
+  const SQL = await initSqlJs();
+  
+  // Load existing database or create new one
+  if (existsSync(dbPath)) {
+    const buffer = readFileSync(dbPath);
+    db = new SQL.Database(buffer);
+  } else {
+    db = new SQL.Database();
+    const schema = readFileSync(schemaPath, 'utf-8');
+    db.run(schema);
+    
+    // Add sample data
+    seedDatabase();
+    saveDatabase();
+  }
+  
+  console.log('✅ Database initialized');
+}
+
+function saveDatabase() {
+  const data = db.export();
+  const buffer = Buffer.from(data);
+  writeFileSync(dbPath, buffer);
+}
+
+function seedDatabase() {
+  // Sample users
+  const users = [
+    ['Jan Peeters', 'jan@zwembad.be', '#e74c3c', 'voltijds', 38],
+    ['Marie Claes', 'marie@zwembad.be', '#3498db', 'deeltijds', 35],
+    ['Pieter Janssens', 'pieter@zwembad.be', '#2ecc71', 'deeltijds', 32],
+    ['An Vermeersch', 'an@zwembad.be', '#9b59b6', 'voltijds', 38],
+    ['Tom De Smet', 'tom@zwembad.be', '#f39c12', 'deeltijds', 35],
+  ];
+  
+  users.forEach(([name, email, color, type, rate]) => {
+    db.run('INSERT INTO users (name, email, color, contract_type, hourly_rate) VALUES (?, ?, ?, ?, ?)', 
+           [name, email, color, type, rate]);
+  });
+  
+  // Lifeguards
+  db.run('INSERT INTO lifeguards (user_id, max_hours_month) VALUES (1, 160)');
+  db.run('INSERT INTO lifeguards (user_id, max_hours_month) VALUES (2, 80)');
+  db.run('INSERT INTO lifeguards (user_id, max_hours_month) VALUES (4, 160)');
+  db.run('INSERT INTO lifeguards (user_id, max_hours_month) VALUES (5, 80)');
+  
+  // Instructors
+  db.run('INSERT INTO instructors (user_id, has_initiator_diploma) VALUES (2, 0)');
+  db.run('INSERT INTO instructors (user_id, has_initiator_diploma) VALUES (3, 1)');
+  db.run('INSERT INTO instructors (user_id, has_initiator_diploma) VALUES (5, 0)');
+  
+  // Sample schedule for current week
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    // Assign lifeguards
+    const userId = (i % 4) + 1;
+    db.run('INSERT INTO schedule_items (user_id, date, start_time, end_time, type) VALUES (?, ?, ?, ?, ?)',
+           [userId, dateStr, '09:00', '17:00', 'redder']);
+    db.run('INSERT INTO schedule_items (user_id, date, start_time, end_time, type) VALUES (?, ?, ?, ?, ?)',
+           [((userId % 4) + 1), dateStr, '09:00', '17:00', 'redder']);
+  }
+  
+  console.log('✅ Sample data seeded');
+}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+// Helper to run queries
+function query(sql, params = []) {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const results = [];
+  while (stmt.step()) {
+    results.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return results;
+}
+
+function run(sql, params = []) {
+  db.run(sql, params);
+  saveDatabase();
+  return { lastInsertRowid: db.exec('SELECT last_insert_rowid()')[0]?.values[0]?.[0] };
+}
+
 // ========== EMPLOYEES ROUTES ==========
 
-// Get all employees with their roles
 app.get('/api/employees', (req, res) => {
   try {
-    const employees = db.prepare(`
+    const employees = query(`
       SELECT 
         u.*,
         CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as is_lifeguard,
@@ -30,17 +119,16 @@ app.get('/api/employees', (req, res) => {
       FROM users u
       LEFT JOIN lifeguards l ON u.id = l.user_id
       LEFT JOIN instructors i ON u.id = i.user_id
-    `).all();
+    `);
     res.json(employees);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get single employee
 app.get('/api/employees/:id', (req, res) => {
   try {
-    const employee = db.prepare(`
+    const employees = query(`
       SELECT 
         u.*,
         CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as is_lifeguard,
@@ -51,34 +139,32 @@ app.get('/api/employees/:id', (req, res) => {
       LEFT JOIN lifeguards l ON u.id = l.user_id
       LEFT JOIN instructors i ON u.id = i.user_id
       WHERE u.id = ?
-    `).get(req.params.id);
+    `, [parseInt(req.params.id)]);
     
-    if (!employee) {
+    if (employees.length === 0) {
       return res.status(404).json({ error: 'Employee not found' });
     }
-    res.json(employee);
+    res.json(employees[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create new employee
 app.post('/api/employees', (req, res) => {
   try {
     const { name, email, color, contract_type, hourly_rate, is_lifeguard, is_instructor, has_initiator_diploma } = req.body;
     
-    const result = db.prepare(`
-      INSERT INTO users (name, email, color, contract_type, hourly_rate)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(name, email, color || '#3788d8', contract_type || 'deeltijds', hourly_rate || 38);
+    run('INSERT INTO users (name, email, color, contract_type, hourly_rate) VALUES (?, ?, ?, ?, ?)',
+        [name, email, color || '#3788d8', contract_type || 'deeltijds', hourly_rate || 38]);
     
-    const userId = result.lastInsertRowid;
+    const result = db.exec('SELECT last_insert_rowid()');
+    const userId = result[0]?.values[0]?.[0];
     
     if (is_lifeguard) {
-      db.prepare('INSERT INTO lifeguards (user_id) VALUES (?)').run(userId);
+      run('INSERT INTO lifeguards (user_id) VALUES (?)', [userId]);
     }
     if (is_instructor) {
-      db.prepare('INSERT INTO instructors (user_id, has_initiator_diploma) VALUES (?, ?)').run(userId, has_initiator_diploma ? 1 : 0);
+      run('INSERT INTO instructors (user_id, has_initiator_diploma) VALUES (?, ?)', [userId, has_initiator_diploma ? 1 : 0]);
     }
     
     res.status(201).json({ id: userId, message: 'Employee created' });
@@ -89,14 +175,13 @@ app.post('/api/employees', (req, res) => {
 
 // ========== SCHEDULE ROUTES ==========
 
-// Get schedule for a month
 app.get('/api/schedule/month/:year/:month', (req, res) => {
   try {
     const { year, month } = req.params;
     const startDate = `${year}-${month.padStart(2, '0')}-01`;
     const endDate = `${year}-${month.padStart(2, '0')}-31`;
     
-    const items = db.prepare(`
+    const items = query(`
       SELECT 
         s.*,
         u.name as user_name,
@@ -105,7 +190,7 @@ app.get('/api/schedule/month/:year/:month', (req, res) => {
       JOIN users u ON s.user_id = u.id
       WHERE s.date BETWEEN ? AND ?
       ORDER BY s.date, s.start_time
-    `).all(startDate, endDate);
+    `, [startDate, endDate]);
     
     res.json(items);
   } catch (error) {
@@ -113,21 +198,19 @@ app.get('/api/schedule/month/:year/:month', (req, res) => {
   }
 });
 
-// Get schedule for a specific user
 app.get('/api/schedule/user/:userId', (req, res) => {
   try {
-    const items = db.prepare(`
+    const items = query(`
       SELECT * FROM schedule_items 
       WHERE user_id = ?
       ORDER BY date, start_time
-    `).all(req.params.userId);
+    `, [parseInt(req.params.userId)]);
     res.json(items);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create schedule item with validation
 app.post('/api/schedule', (req, res) => {
   try {
     const { user_id, date, start_time, end_time, type, notes } = req.body;
@@ -144,64 +227,39 @@ app.post('/api/schedule', (req, res) => {
       return res.status(400).json({ error: 'Maximum 9 uur per dag toegestaan' });
     }
     
-    // Check if date falls within a rental period
-    const rental = db.prepare(`
-      SELECT * FROM rental_periods 
-      WHERE ? BETWEEN start_date AND end_date
-    `).get(date);
-    
-    if (rental && type === 'redder') {
+    // Check rental period
+    const rentals = query('SELECT * FROM rental_periods WHERE ? BETWEEN start_date AND end_date', [date]);
+    if (rentals.length > 0 && type === 'redder') {
       return res.status(400).json({ 
         error: 'Zwembad is verhuurd in deze periode - geen redders nodig',
-        rental: rental
+        rental: rentals[0]
       });
     }
     
-    // Check instructor diploma for instructor type
-    if (type === 'lesgever') {
-      const instructor = db.prepare(`
-        SELECT i.* FROM instructors i WHERE i.user_id = ?
-      `).get(user_id);
-      
-      if (!instructor) {
-        return res.status(400).json({ 
-          warning: 'Deze persoon is geen geregistreerde lesgever'
-        });
-      }
-    }
+    run('INSERT INTO schedule_items (user_id, date, start_time, end_time, type, notes) VALUES (?, ?, ?, ?, ?, ?)',
+        [user_id, date, start_time, end_time, type, notes || null]);
     
-    const result = db.prepare(`
-      INSERT INTO schedule_items (user_id, date, start_time, end_time, type, notes)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(user_id, date, start_time, end_time, type, notes);
-    
-    res.status(201).json({ id: result.lastInsertRowid, message: 'Schedule item created' });
+    const result = db.exec('SELECT last_insert_rowid()');
+    res.status(201).json({ id: result[0]?.values[0]?.[0], message: 'Schedule item created' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update schedule item
 app.put('/api/schedule/:id', (req, res) => {
   try {
     const { date, start_time, end_time, type, notes } = req.body;
-    
-    db.prepare(`
-      UPDATE schedule_items 
-      SET date = ?, start_time = ?, end_time = ?, type = ?, notes = ?
-      WHERE id = ?
-    `).run(date, start_time, end_time, type, notes, req.params.id);
-    
+    run('UPDATE schedule_items SET date = ?, start_time = ?, end_time = ?, type = ?, notes = ? WHERE id = ?',
+        [date, start_time, end_time, type, notes, parseInt(req.params.id)]);
     res.json({ message: 'Schedule item updated' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Delete schedule item
 app.delete('/api/schedule/:id', (req, res) => {
   try {
-    db.prepare('DELETE FROM schedule_items WHERE id = ?').run(req.params.id);
+    run('DELETE FROM schedule_items WHERE id = ?', [parseInt(req.params.id)]);
     res.json({ message: 'Schedule item deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -210,14 +268,13 @@ app.delete('/api/schedule/:id', (req, res) => {
 
 // ========== HOURS TRACKING ==========
 
-// Get worked hours for a user in a month
 app.get('/api/employees/:id/hours/:year/:month', (req, res) => {
   try {
     const { id, year, month } = req.params;
     const startDate = `${year}-${month.padStart(2, '0')}-01`;
     const endDate = `${year}-${month.padStart(2, '0')}-31`;
     
-    const result = db.prepare(`
+    const result = query(`
       SELECT 
         SUM(
           (CAST(substr(end_time, 1, 2) AS INTEGER) * 60 + CAST(substr(end_time, 4, 2) AS INTEGER)) -
@@ -225,16 +282,17 @@ app.get('/api/employees/:id/hours/:year/:month', (req, res) => {
         ) / 60.0 as total_hours
       FROM schedule_items
       WHERE user_id = ? AND date BETWEEN ? AND ?
-    `).get(id, startDate, endDate);
+    `, [parseInt(id), startDate, endDate]);
     
-    const employee = db.prepare(`
-      SELECT l.max_hours_month FROM lifeguards l WHERE l.user_id = ?
-    `).get(id);
+    const employee = query('SELECT max_hours_month FROM lifeguards WHERE user_id = ?', [parseInt(id)]);
+    
+    const workedHours = result[0]?.total_hours || 0;
+    const maxHours = employee[0]?.max_hours_month || 160;
     
     res.json({
-      worked_hours: result?.total_hours || 0,
-      max_hours: employee?.max_hours_month || 160,
-      remaining_hours: (employee?.max_hours_month || 160) - (result?.total_hours || 0)
+      worked_hours: workedHours,
+      max_hours: maxHours,
+      remaining_hours: maxHours - workedHours
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -245,7 +303,7 @@ app.get('/api/employees/:id/hours/:year/:month', (req, res) => {
 
 app.get('/api/rental-periods', (req, res) => {
   try {
-    const periods = db.prepare('SELECT * FROM rental_periods ORDER BY start_date').all();
+    const periods = query('SELECT * FROM rental_periods ORDER BY start_date');
     res.json(periods);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -255,11 +313,10 @@ app.get('/api/rental-periods', (req, res) => {
 app.post('/api/rental-periods', (req, res) => {
   try {
     const { start_date, end_date, renter_name, notes } = req.body;
-    const result = db.prepare(`
-      INSERT INTO rental_periods (start_date, end_date, renter_name, notes)
-      VALUES (?, ?, ?, ?)
-    `).run(start_date, end_date, renter_name, notes);
-    res.status(201).json({ id: result.lastInsertRowid });
+    run('INSERT INTO rental_periods (start_date, end_date, renter_name, notes) VALUES (?, ?, ?, ?)',
+        [start_date, end_date, renter_name, notes]);
+    const result = db.exec('SELECT last_insert_rowid()');
+    res.status(201).json({ id: result[0]?.values[0]?.[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -269,7 +326,7 @@ app.post('/api/rental-periods', (req, res) => {
 
 app.get('/api/config', (req, res) => {
   try {
-    const config = db.prepare('SELECT * FROM config').all();
+    const config = query('SELECT * FROM config');
     const configObj = {};
     config.forEach(c => { configObj[c.key] = c.value; });
     res.json(configObj);
@@ -280,11 +337,13 @@ app.get('/api/config', (req, res) => {
 
 // ========== START SERVER ==========
 
-app.listen(PORT, () => {
-  console.log(`🏊 Zwembadredders API running on http://localhost:${PORT}`);
-  console.log('📋 Available endpoints:');
-  console.log('   GET  /api/employees');
-  console.log('   GET  /api/schedule/month/:year/:month');
-  console.log('   POST /api/schedule');
-  console.log('   GET  /api/employees/:id/hours/:year/:month');
+initDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🏊 Zwembadredders API running on http://localhost:${PORT}`);
+    console.log('📋 Available endpoints:');
+    console.log('   GET  /api/employees');
+    console.log('   GET  /api/schedule/month/:year/:month');
+    console.log('   POST /api/schedule');
+    console.log('   GET  /api/employees/:id/hours/:year/:month');
+  });
 });

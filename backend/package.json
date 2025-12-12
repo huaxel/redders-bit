@@ -10,7 +10,7 @@
     "init-db": "node database/init.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.6.0",
+    "sql.js": "^1.11.0",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   }
