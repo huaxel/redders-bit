@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     color TEXT DEFAULT '#3788d8',
     contract_type TEXT CHECK(contract_type IN ('voltijds', 'deeltijds')) DEFAULT 'deeltijds',
+    role TEXT CHECK(role IN ('admin', 'redder', 'lesgever')) DEFAULT 'redder',
     hourly_rate REAL DEFAULT 38.00,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -38,17 +39,30 @@ CREATE TABLE IF NOT EXISTS certificates (
     FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE
 );
 
+-- Zwembad locaties
+CREATE TABLE IF NOT EXISTS pools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    surface_area REAL NOT NULL DEFAULT 250, -- m2, bepaalt aantal redders
+    is_active INTEGER DEFAULT 1
+);
+
+-- Default zwembad
+INSERT OR IGNORE INTO pools (id, name, surface_area) VALUES (1, 'Hoofdbad', 450);
+
 -- Planning items
 CREATE TABLE IF NOT EXISTS schedule_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
+    pool_id INTEGER NOT NULL DEFAULT 1,
     date DATE NOT NULL,
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,
     type TEXT CHECK(type IN ('redder', 'lesgever')) NOT NULL,
     notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE
 );
 
 -- Verhuurperiodes (zwembad verhuurd = geen redders nodig)
@@ -73,7 +87,3 @@ INSERT OR IGNORE INTO config (key, value, description) VALUES
     ('required_rest_days', '2', 'Verplichte rustdagen na werkperiode'),
     ('min_hours_per_day', '4', 'Minimum werkuren per dag'),
     ('max_hours_per_day', '9', 'Maximum werkuren per dag');
-
--- Indexes voor performance
-CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule_items(date);
-CREATE INDEX IF NOT EXISTS idx_schedule_user ON schedule_items(user_id);
