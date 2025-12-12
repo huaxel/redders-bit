@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react'
+import { FaUsers, FaLifeRing, FaGraduationCap, FaCalendarDay, FaCalendarAlt } from 'react-icons/fa'
+import Card from '../components/Card'
+import StatCard from '../components/StatCard'
+import Button from '../components/Button'
 
 function Dashboard() {
     const [stats, setStats] = useState({
@@ -8,6 +12,7 @@ function Dashboard() {
         todayShifts: 0
     })
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
 
     useEffect(() => {
         fetchStats()
@@ -16,6 +21,7 @@ function Dashboard() {
     const fetchStats = async () => {
         try {
             const res = await fetch('/api/employees')
+            if (!res.ok) throw new Error('Failed to fetch data')
             const employees = await res.json()
 
             const now = new Date()
@@ -33,15 +39,29 @@ function Dashboard() {
                 instructors: employees.filter(e => e.is_instructor).length,
                 todayShifts
             })
-        } catch (error) {
-            console.error('Failed to fetch stats:', error)
+        } catch (err) {
+            console.error('Failed to fetch stats:', err)
+            setError('Kon statistieken niet laden. Probeer het later opnieuw.')
         } finally {
             setLoading(false)
         }
     }
 
     if (loading) {
-        return <div className="loading">Laden...</div>
+        return (
+            <div className="loading">
+                <div className="spinner" role="status" aria-label="Laden..."></div>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="alert warning" role="alert">
+                <span>⚠️</span>
+                {error}
+            </div>
+        )
     }
 
     return (
@@ -52,50 +72,43 @@ function Dashboard() {
             </div>
 
             <div className="card-grid">
-                <div className="card stat-card">
-                    <div className="stat-icon primary">👥</div>
-                    <div className="stat-content">
-                        <h3>{stats.employees}</h3>
-                        <p>Medewerkers</p>
-                    </div>
-                </div>
-
-                <div className="card stat-card">
-                    <div className="stat-icon success">🏊</div>
-                    <div className="stat-content">
-                        <h3>{stats.lifeguards}</h3>
-                        <p>Redders</p>
-                    </div>
-                </div>
-
-                <div className="card stat-card">
-                    <div className="stat-icon secondary">🎓</div>
-                    <div className="stat-content">
-                        <h3>{stats.instructors}</h3>
-                        <p>Lesgevers</p>
-                    </div>
-                </div>
-
-                <div className="card stat-card">
-                    <div className="stat-icon warning">📅</div>
-                    <div className="stat-content">
-                        <h3>{stats.todayShifts}</h3>
-                        <p>Shiften vandaag</p>
-                    </div>
-                </div>
+                <StatCard
+                    icon={<FaUsers />}
+                    value={stats.employees}
+                    label="Medewerkers"
+                    variant="primary"
+                />
+                <StatCard
+                    icon={<FaLifeRing />}
+                    value={stats.lifeguards}
+                    label="Redders"
+                    variant="success"
+                />
+                <StatCard
+                    icon={<FaGraduationCap />}
+                    value={stats.instructors}
+                    label="Lesgevers"
+                    variant="secondary"
+                />
+                <StatCard
+                    icon={<FaCalendarDay />}
+                    value={stats.todayShifts}
+                    label="Shiften vandaag"
+                    variant="warning"
+                />
             </div>
 
-            <div className="card">
+            <Card>
                 <h3 style={{ marginBottom: '16px' }}>⚡ Snelle acties</h3>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <a href="/planning" className="btn btn-primary">
-                        📅 Naar Planning
-                    </a>
-                    <a href="/employees" className="btn btn-primary">
-                        👥 Medewerkers Beheren
-                    </a>
+                <div className="actions-container">
+                    <Button to="/planning" variant="primary">
+                        <FaCalendarAlt /> Naar Planning
+                    </Button>
+                    <Button to="/employees" variant="primary">
+                        <FaUsers /> Medewerkers Beheren
+                    </Button>
                 </div>
-            </div>
+            </Card>
         </div>
     )
 }
