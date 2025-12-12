@@ -1,0 +1,17 @@
+{
+  "name": "redders-backend",
+  "version": "1.0.0",
+  "description": "Backend API voor Zwembadredders Planning Systeem",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "init-db": "node database/init.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}
