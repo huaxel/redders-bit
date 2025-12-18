@@ -7,14 +7,14 @@ export const client = {
 };
 
 async function request(method, url, body) {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('token');
     
     const headers = {
         'Content-Type': 'application/json',
     };
 
-    if (user) {
-        headers['x-user-id'] = user.id;
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
     const config = {
@@ -30,7 +30,11 @@ async function request(method, url, body) {
     
     // Helper to throw if 401/403 (could trigger logout here in future)
     if (response.status === 401 || response.status === 403) {
-        console.warn('Unauthorized request');
+        if (url !== '/api/auth/login') {
+            console.warn('Unauthorized request, redirecting...');
+            // Optional: localStorage.removeItem('token');
+            // Optional: window.location.href = '/login';
+        }
     }
 
     return response;

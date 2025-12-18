@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
+    password TEXT, -- For future JWT implementation
     color TEXT DEFAULT '#3788d8',
     contract_type TEXT CHECK(contract_type IN ('voltijds', 'deeltijds')) DEFAULT 'deeltijds',
     role TEXT CHECK(role IN ('admin', 'redder', 'lesgever')) DEFAULT 'redder',
@@ -62,7 +63,11 @@ CREATE TABLE IF NOT EXISTS schedule_items (
     notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE
+    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE,
+    -- Prevent overlapping shifts for the same user
+    UNIQUE(user_id, date, start_time),
+    -- Data sanity: end time must be after start time
+    CHECK(end_time > start_time)
 );
 
 -- Verhuurperiodes (zwembad verhuurd = geen redders nodig)
@@ -99,5 +104,32 @@ CREATE TABLE IF NOT EXISTS shift_requests (
     status TEXT CHECK(status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE
+    FOREIGN KEY (pool_id) REFERENCES pools(id) ON DELETE CASCADE,
+    -- Prevent duplicate identical requests
+    UNIQUE(user_id, pool_id, date, start_time, end_time),
+    CHECK(end_time > start_time)
+);
+
+-- Sick Leaves (Audit log)
+CREATE TABLE IF NOT EXISTS sick_leaves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    schedule_item_id INTEGER, -- Optional link to original shift
+    date DATE NOT NULL,
+    reason TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Shift Swaps (Marketplace)
+CREATE TABLE IF NOT EXISTS shift_swaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_item_id INTEGER NOT NULL,
+    requester_id INTEGER NOT NULL,
+    candidate_id INTEGER,
+    status TEXT CHECK(status IN ('open', 'accepted_by_peer', 'approved', 'rejected')) DEFAULT 'open',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (schedule_item_id) REFERENCES schedule_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE SET NULL
 );

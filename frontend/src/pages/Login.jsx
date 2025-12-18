@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FaSwimmer } from 'react-icons/fa';
 
 function Login() {
-    const [employees, setEmployees] = useState([]);
-    const [selectedUser, setSelectedUser] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
     const { login, user } = useAuth();
     const navigate = useNavigate();
 
@@ -13,23 +13,17 @@ function Login() {
         if (user) {
             navigate('/');
         }
-
-        // Fetch users for the "Select User" dropdown (Dev Mode)
-        fetch('/api/employees')
-            .then(res => res.json())
-            .then(data => setEmployees(data))
-            .catch(err => console.error("Failed to load employees", err));
     }, [user, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedUser) return;
+        setError('');
 
-        const success = await login(selectedUser);
+        const success = await login(email, password);
         if (success) {
             navigate('/');
         } else {
-            alert('Login mislukt');
+            setError('Login mislukt. Controleer uw gegevens.');
         }
     };
 
@@ -47,40 +41,65 @@ function Login() {
                 </div>
                 <h1 style={{ marginBottom: '8px' }}>Welkom</h1>
                 <p style={{ color: 'var(--color-text-muted)', marginBottom: '32px' }}>
-                    Selecteer een gebruiker om in te loggen
+                    Log in op uw account
                 </p>
 
+                {error && (
+                    <div className="alert warning" style={{ marginBottom: '20px', fontSize: '14px' }}>
+                        {error}
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit}>
-                    <div style={{ marginBottom: '24px' }}>
-                        <select
-                            value={selectedUser}
-                            onChange={(e) => setSelectedUser(e.target.value)}
+                    <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold' }}>EMAIL</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="naam@zwembad.be"
+                            required
                             style={{
                                 width: '100%',
                                 padding: '12px',
-                                borderRadius: '8px',
+                                borderRadius: '4px',
                                 border: '1px solid var(--color-border)',
                                 fontSize: '16px',
                                 backgroundColor: 'var(--color-surface)'
                             }}
-                        >
-                            <option value="">-- Kies een gebruiker --</option>
-                            {employees.map(emp => (
-                                <option key={emp.id} value={emp.id}>
-                                    {emp.name} ({emp.role})
-                                </option>
-                            ))}
-                        </select>
+                        />
+                    </div>
+
+                    <div style={{ marginBottom: '24px', textAlign: 'left' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold' }}>WACHTWOORD</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            required
+                            style={{
+                                width: '100%',
+                                padding: '12px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--color-border)',
+                                fontSize: '16px',
+                                backgroundColor: 'var(--color-surface)'
+                            }}
+                        />
                     </div>
 
                     <button
                         type="submit"
                         className="btn btn-primary"
                         style={{ width: '100%', justifyContent: 'center' }}
-                        disabled={!selectedUser}
                     >
                         Inloggen
                     </button>
+
+                    <div style={{ marginTop: '20px', fontSize: '11px', color: 'var(--color-text-muted)', opacity: 0.7 }}>
+                        Demo: Gebruik <code>jan@zwembad.be</code> / <code>password123</code>
+                    </div>
                 </form>
             </div>
         </div>

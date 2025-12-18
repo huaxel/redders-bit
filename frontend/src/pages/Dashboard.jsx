@@ -3,6 +3,7 @@ import { FaUsers, FaLifeRing, FaGraduationCap, FaCalendarDay, FaCalendarAlt } fr
 import Card from '../components/Card'
 import StatCard from '../components/StatCard'
 import Button from '../components/Button'
+import SwapMarketplace from '../components/SwapMarketplace'
 import { client } from '../api/client'
 
 function Dashboard() {
@@ -104,6 +105,11 @@ function Dashboard() {
                     label="Shiften vandaag"
                     variant="warning"
                 />
+            </div>
+
+            {/* Swap Marketplace Widget */}
+            <div style={{ marginBottom: '24px' }}>
+                <SwapMarketplace />
             </div>
 
             <div className="card-grid" style={{ gridTemplateColumns: 'minmax(300px, 2fr) minmax(300px, 1fr)' }}>

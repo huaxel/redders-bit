@@ -1,20 +1,22 @@
-import { query } from '../db.js';
+import { AuthService } from '../services/AuthService.js';
 
 export const checkRole = (allowedRoles) => (req, res, next) => {
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    // For dev MVP, if no header, assume Admin (User 1)
-    req.user = { id: 1, role: 'admin' };
-    return next();
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required (JWT)' });
   }
 
-  const user = query('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-  if (!allowedRoles.includes(user.role) && !allowedRoles.includes('any')) {
-    return res.status(403).json({ error: 'Forbidden' });
+  const decoded = AuthService.verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  req.user = user;
+  if (!allowedRoles.includes(decoded.role) && !allowedRoles.includes('any')) {
+    return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+  }
+
+  req.user = decoded;
   next();
 };

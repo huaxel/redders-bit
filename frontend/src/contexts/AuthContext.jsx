@@ -9,28 +9,30 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Restore session from localStorage
         const storedUser = localStorage.getItem('user');
-        if (storedUser) {
+        const token = localStorage.getItem('token');
+        if (storedUser && token) {
             setUser(JSON.parse(storedUser));
         }
         setLoading(false);
     }, []);
 
-    const login = async (userId) => {
+    const login = async (email, password) => {
         try {
-            // Fetch fresh user details
-            // We need a specific endpoint to get a single user, 
-            // but for now we can filter from the list or assume we have the object
-            // Let's assume the Login page passes the full user object, or we fetch it.
-            // Using existing endpoint logic:
-            const res = await fetch('/api/employees');
-            const employees = await res.json();
-            const foundUser = employees.find(u => u.id === parseInt(userId));
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-            if (foundUser) {
-                setUser(foundUser);
-                localStorage.setItem('user', JSON.stringify(foundUser));
+            if (res.ok) {
+                const data = await res.json();
+                setUser(data.user);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                localStorage.setItem('token', data.token);
                 return true;
             } else {
+                const err = await res.json();
+                console.error("Login bias:", err.error);
                 return false;
             }
         } catch (error) {
@@ -42,6 +44,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
     };
 
     return (

@@ -4,9 +4,15 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { client } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import ShiftActionModal from '../components/ShiftActionModal'
 
 function MySchedule() {
+    const [events, setEvents] = useState([])
+    const [hours, setHours] = useState({ worked: 0, max: 160, remaining: 160 })
+    const [loading, setLoading] = useState(true)
     const [requests, setRequests] = useState([])
+    const [selectedShift, setSelectedShift] = useState(null)
+    const [isModalOpen, setIsModalOpen] = useState(false)
     const { user } = useAuth()
 
     useEffect(() => {
@@ -53,6 +59,48 @@ function MySchedule() {
             console.error('Failed to fetch schedule:', error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleEventClick = (info) => {
+        setSelectedShift({
+            id: info.event.id,
+            start: info.event.start,
+            end: info.event.end,
+            title: info.event.title
+        })
+        setIsModalOpen(true)
+    }
+
+    const handleReportSickness = async (reason) => {
+        try {
+            const res = await client.post(`/api/schedule/${selectedShift.id}/sick`, { reason })
+            if (res.ok) {
+                alert("Ziekte gemeld. Beterschap!") // Can also be replaced by a toast in future
+                setIsModalOpen(false)
+                fetchMySchedule()
+            } else {
+                const err = await res.json()
+                alert("Fout: " + err.error)
+            }
+        } catch (e) {
+            console.error(e)
+        }
+    }
+
+    const handleRequestSwap = async () => {
+        try {
+            const res = await client.post(`/api/schedule/${selectedShift.id}/swap`, {})
+            if (res.ok) {
+                alert("Ruilverzoek aangemaakt. Collega's kunnen dit nu zien op het dashboard.")
+                setIsModalOpen(false)
+                fetchMySchedule()
+            } else {
+                const err = await res.json()
+                alert("Fout: " + err.error)
+            }
+        } catch (e) {
+            console.error(e)
         }
     }
 
@@ -179,6 +227,9 @@ function MySchedule() {
                             <span>🎓 Les geven</span>
                         </div>
                     </div>
+                    <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                        * Klik op een shift om ziekte te melden of te ruilen.
+                    </div>
                 </div>
             </div>
 
@@ -194,13 +245,21 @@ function MySchedule() {
                     locale="nl"
                     firstDay={1}
                     events={events}
+                    eventClick={handleEventClick}
                     height="auto"
                     slotMinTime="06:00:00"
                     slotMaxTime="22:00:00"
                 />
             </div>
+
+            <ShiftActionModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                shift={selectedShift}
+                onReportSickness={handleReportSickness}
+                onRequestSwap={handleRequestSwap}
+            />
         </div>
     )
 }
-
 export default MySchedule

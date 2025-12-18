@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import authRoutes from './auth.routes.js';
 import complianceRoutes from './compliance.routes.js';
 import scheduleRoutes from './schedule.routes.js';
 import baseRoutes from './base.routes.js';
 
 const router = Router();
 
+router.use('/auth', authRoutes);
 router.use('/compliance', complianceRoutes);
 router.use('/schedule', scheduleRoutes);
 // Base routes handled /api/pools etc. 

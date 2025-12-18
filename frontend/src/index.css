@@ -246,11 +246,14 @@ body {
   letter-spacing: 1px;
 }
 
-/* Dashed Events for Requests */
+/* Dashed Events for Requests - High Contrast */
 .fc-event.dashed-event {
   border-style: dashed !important;
   border-width: 2px !important;
-  font-weight: 600;
+  font-weight: 700 !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
 }
 
 /* Buttons */
